@@ -1,0 +1,7 @@
+# Optional heavy dependencies for enterprise features
+# Install with: pip install -r requirements-dev.txt
+xgboost>=2.0.0
+shap>=0.46.0
+mlflow>=2.16.0
+dvc>=3.0.0
+kafka-python>=2.0.2

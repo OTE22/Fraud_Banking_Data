@@ -1,0 +1,15 @@
+stages:
+  prepare:
+    cmd: python backend/data/load_data.py
+    deps:
+      - AIML Dataset.csv
+    outs:
+      - backend/feature_repo/data/transactions.csv
+  train:
+    cmd: python backend/train_model.py
+    deps:
+      - backend/feature_repo/data/transactions.csv
+    outs:
+      - backend/models/fraud_model.pkl
+    metrics:
+      - backend/models/metrics.json

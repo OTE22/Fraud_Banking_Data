@@ -4,14 +4,24 @@ import PredictForm from './components/PredictForm'
 import DriftView from './components/DriftView'
 import LogsView from './components/LogsView'
 import FeastView from './components/FeastView'
+import FraudAlerts from './components/FraudAlerts'
+import UserManagement from './components/UserManagement'
+import RoleManagement from './components/RoleManagement'
+import AuditLogs from './components/AuditLogs'
+import CustomerSegmentation from './components/CustomerSegmentation'
 
-type Tab = 'dashboard' | 'predict' | 'drift' | 'logs' | 'features'
+type Tab = 'dashboard' | 'predict' | 'logs' | 'features' | 'drift' | 'alerts' | 'users' | 'roles' | 'audit' | 'segments'
 
 const tabs: { key: Tab; label: string; icon: string }[] = [
   { key: 'dashboard', label: 'Dashboard', icon: '📊' },
   { key: 'predict', label: 'Predict', icon: '🔍' },
+  { key: 'alerts', label: 'Alerts', icon: '🚨' },
   { key: 'logs', label: 'Logs', icon: '📋' },
   { key: 'features', label: 'Features', icon: '🏪' },
+  { key: 'segments', label: 'Segments', icon: '📊' },
+  { key: 'users', label: 'Users', icon: '👥' },
+  { key: 'roles', label: 'Roles', icon: '🔐' },
+  { key: 'audit', label: 'Audit', icon: '📜' },
   { key: 'drift', label: 'Drift Monitor', icon: '📈' },
 ]
 
@@ -46,8 +56,13 @@ export default function App() {
       <div className="fade-in" key={tab}>
         {tab === 'dashboard' && <Dashboard />}
         {tab === 'predict' && <PredictForm />}
+        {tab === 'alerts' && <FraudAlerts />}
         {tab === 'logs' && <LogsView />}
         {tab === 'features' && <FeastView />}
+        {tab === 'segments' && <CustomerSegmentation />}
+        {tab === 'users' && <UserManagement />}
+        {tab === 'roles' && <RoleManagement />}
+        {tab === 'audit' && <AuditLogs />}
         {tab === 'drift' && <DriftView />}
       </div>
 
