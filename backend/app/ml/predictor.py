@@ -1,7 +1,7 @@
 import joblib
 import numpy as np
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timezone
 from app.config import get_settings
 from app.core.logging import LOGGER
 from app.domain.schemas import TransactionInput, PredictionOutput
@@ -15,6 +15,7 @@ class FraudPredictor:
         self.feature_cols = None
         self.anomaly_model = None
         self.anomaly_scaler = None
+        self.anomaly_feature_cols = None
         self._load_model()
         self._load_anomaly_model()
 
@@ -58,7 +59,7 @@ class FraudPredictor:
         if not self.loaded:
             return PredictionOutput(
                 transaction_id=tx.transaction_id, fraud_probability=0.0,
-                is_fraudulent=False, model_version="unavailable", timestamp=datetime.utcnow(),
+                is_fraudulent=False, model_version="unavailable", timestamp=datetime.now(timezone.utc),
             )
         X = self._build_features(tx)
         proba = self.model.predict_proba(X)[0, 1]
@@ -66,14 +67,14 @@ class FraudPredictor:
         LOGGER.info("prediction_made", tx_id=tx.transaction_id, proba=round(proba, 4))
         return PredictionOutput(
             transaction_id=tx.transaction_id, fraud_probability=round(float(proba), 4),
-            is_fraudulent=pred, model_version="v1.0", timestamp=datetime.utcnow(),
+            is_fraudulent=pred, model_version="v1.0", timestamp=datetime.now(timezone.utc),
         )
 
     def predict_with_detail(self, tx: TransactionInput) -> tuple:
         if not self.loaded:
             return PredictionOutput(
                 transaction_id=tx.transaction_id, fraud_probability=0.0,
-                is_fraudulent=False, model_version="unavailable", timestamp=datetime.utcnow(),
+                is_fraudulent=False, model_version="unavailable", timestamp=datetime.now(timezone.utc),
             ), {}
         type_encoded = self.type_encoder.transform([tx.transaction_type])[0]
         raw_values = [
@@ -92,11 +93,16 @@ class FraudPredictor:
         anomaly_score = None
         if self.anomaly_model is not None and self.anomaly_scaler is not None:
             try:
-                anomaly_features = np.array([[
-                    tx.amount, tx.oldbalance_orig, tx.newbalance_orig,
+                anom_raw = np.array([[
+                    tx.amount,
+                    np.log1p(tx.amount),
+                    tx.oldbalance_orig - tx.newbalance_orig,
+                    tx.newbalance_dest - tx.oldbalance_dest,
+                    tx.amount / (tx.oldbalance_orig + 1),
+                    tx.oldbalance_orig, tx.newbalance_orig,
                     tx.oldbalance_dest, tx.newbalance_dest,
                 ]])
-                anom_scaled = self.anomaly_scaler.transform(anomaly_features)
+                anom_scaled = self.anomaly_scaler.transform(anom_raw)
                 anomaly_score = float(self.anomaly_model.score_samples(anom_scaled)[0])
             except Exception:
                 pass
@@ -117,7 +123,7 @@ class FraudPredictor:
         LOGGER.info("prediction_detail", tx_id=tx.transaction_id, proba=round(proba, 4))
         return PredictionOutput(
             transaction_id=tx.transaction_id, fraud_probability=round(float(proba), 4),
-            is_fraudulent=pred, model_version="v1.0", timestamp=datetime.utcnow(),
+            is_fraudulent=pred, model_version="v1.0", timestamp=datetime.now(timezone.utc),
         ), detail
 
 

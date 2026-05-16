@@ -1,6 +1,6 @@
 import json
 import pandas as pd
-from datetime import datetime
+from datetime import datetime, timezone
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 import evidently
 from evidently.presets import DataDriftPreset
@@ -25,7 +25,7 @@ async def run_drift_check(current_data: pd.DataFrame) -> DriftReport:
     global _latest_report
     if _reference_data is None or current_data.empty:
         return DriftReport(
-            timestamp=datetime.utcnow(), total_features=0,
+            timestamp=datetime.now(timezone.utc), total_features=0,
             drifted_features=0, drift_percentage=0.0, metrics=[],
         )
     report = evidently.Report(metrics=[DataDriftPreset()])
@@ -45,7 +45,7 @@ async def run_drift_check(current_data: pd.DataFrame) -> DriftReport:
         ))
     total = len(metrics_list) or 1
     _latest_report = DriftReport(
-        timestamp=datetime.utcnow(),
+        timestamp=datetime.now(timezone.utc),
         total_features=len(metrics_list),
         drifted_features=drift_count,
         drift_percentage=round(drift_count / total * 100, 2),

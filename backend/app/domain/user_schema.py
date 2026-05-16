@@ -14,7 +14,7 @@ class UserResponse(BaseModel):
     username: str
     email: str
     roles: list[str]
-    is_active: bool
+    is_active: bool = True
     created_at: Optional[str] = None
 
 

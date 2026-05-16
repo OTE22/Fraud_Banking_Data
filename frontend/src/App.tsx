@@ -1,4 +1,7 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { getToken, clearToken } from './auth'
+import LoginPage from './components/LoginPage'
+import RegisterPage from './components/RegisterPage'
 import Dashboard from './components/Dashboard'
 import PredictForm from './components/PredictForm'
 import DriftView from './components/DriftView'
@@ -12,21 +15,83 @@ import CustomerSegmentation from './components/CustomerSegmentation'
 
 type Tab = 'dashboard' | 'predict' | 'logs' | 'features' | 'drift' | 'alerts' | 'users' | 'roles' | 'audit' | 'segments'
 
-const tabs: { key: Tab; label: string; icon: string }[] = [
+const TAB_MAP: Record<string, Tab> = {
+  '/': 'dashboard', '/predict': 'predict', '/logs': 'logs',
+  '/features': 'features', '/drift': 'drift', '/alerts': 'alerts',
+  '/users': 'users', '/roles': 'roles', '/audit': 'audit', '/segments': 'segments',
+}
+const PATH_MAP: Record<Tab, string> = Object.fromEntries(
+  Object.entries(TAB_MAP).map(([k, v]) => [v, k])
+) as Record<Tab, string>
+
+const ALL_TABS: { key: Tab; label: string; icon: string; adminOnly?: boolean }[] = [
   { key: 'dashboard', label: 'Dashboard', icon: '📊' },
   { key: 'predict', label: 'Predict', icon: '🔍' },
   { key: 'alerts', label: 'Alerts', icon: '🚨' },
   { key: 'logs', label: 'Logs', icon: '📋' },
   { key: 'features', label: 'Features', icon: '🏪' },
   { key: 'segments', label: 'Segments', icon: '📊' },
-  { key: 'users', label: 'Users', icon: '👥' },
-  { key: 'roles', label: 'Roles', icon: '🔐' },
-  { key: 'audit', label: 'Audit', icon: '📜' },
+  { key: 'users', label: 'Users', icon: '👥', adminOnly: true },
+  { key: 'roles', label: 'Roles', icon: '🔐', adminOnly: true },
+  { key: 'audit', label: 'Audit', icon: '📜', adminOnly: true },
   { key: 'drift', label: 'Drift Monitor', icon: '📈' },
 ]
 
+const API = window.location.origin.includes('3000') ? 'http://localhost:8000' : ''
+
+function getPathTab(): Tab {
+  const hash = window.location.hash.replace('#', '')
+  return TAB_MAP[hash] || 'dashboard'
+}
+
 export default function App() {
-  const [tab, setTab] = useState<Tab>('dashboard')
+  const [tab, setTabState] = useState<Tab>(getPathTab)
+  const [authed, setAuthed] = useState(false)
+  const [showLogin, setShowLogin] = useState(true)
+  const [user, setUser] = useState<any>(null)
+  const [checking, setChecking] = useState(true)
+
+  const setTab = (t: Tab) => {
+    setTabState(t)
+    window.location.hash = PATH_MAP[t]
+  }
+
+  useEffect(() => {
+    const onHash = () => setTabState(getPathTab())
+    window.addEventListener('hashchange', onHash)
+    return () => window.removeEventListener('hashchange', onHash)
+  }, [])
+
+  useEffect(() => {
+    const token = getToken()
+    if (token) {
+      fetch(`${API}/api/v1/auth/me`, { headers: { Authorization: `Bearer ${token}` } })
+        .then(r => r.ok ? r.json() : null)
+        .then(u => { if (u) { setUser(u); setAuthed(true) } else { clearToken() } })
+        .catch(() => clearToken())
+        .finally(() => setChecking(false))
+    } else { setChecking(false) }
+  }, [])
+
+  const handleLogin = async () => {
+    const token = getToken()
+    if (!token) return
+    const r = await fetch(`${API}/api/v1/auth/me`, { headers: { Authorization: `Bearer ${token}` } })
+    if (r.ok) { setUser(await r.json()); setAuthed(true); setTab('dashboard') }
+  }
+
+  const handleLogout = () => { clearToken(); setAuthed(false); setUser(null); window.location.hash = '' }
+
+  const isAdmin = user?.roles?.includes('admin')
+  const tabs = ALL_TABS.filter(t => !t.adminOnly || isAdmin)
+
+  if (checking) return <div style={{ textAlign: 'center', padding: 100, fontSize: 18 }}>Loading...</div>
+
+  if (!authed) {
+    return showLogin
+      ? <LoginPage onLogin={handleLogin} onSwitch={() => setShowLogin(false)} />
+      : <RegisterPage onSwitch={() => { setShowLogin(true); window.location.hash = '' }} />
+  }
 
   return (
     <div style={{ maxWidth: 1100, margin: '0 auto', padding: '24px 24px 48px' }}>
@@ -38,18 +103,16 @@ export default function App() {
             <p style={{ fontSize: 12, color: 'var(--text2)' }}>Real-time ML Monitoring</p>
           </div>
         </div>
-        <nav style={{ display: 'flex', gap: 6 }}>
+        <nav style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
           {tabs.map((t) => (
-            <button
-              key={t.key}
-              onClick={() => setTab(t.key)}
+            <button key={t.key} onClick={() => setTab(t.key)}
               className={tab === t.key ? 'btn btn-primary' : 'btn btn-secondary'}
-              style={{ padding: '8px 16px', fontSize: 13 }}
-            >
-              <span>{t.icon}</span>
-              {t.label}
+              style={{ padding: '8px 16px', fontSize: 13 }}>
+              <span>{t.icon}</span> {t.label}
             </button>
           ))}
+          <span style={{ fontSize: 12, color: 'var(--text2)', margin: '0 8px' }}>{user?.username}</span>
+          <button className="btn btn-secondary" onClick={handleLogout} style={{ padding: '6px 12px', fontSize: 12 }}>Logout</button>
         </nav>
       </header>
 
@@ -60,14 +123,14 @@ export default function App() {
         {tab === 'logs' && <LogsView />}
         {tab === 'features' && <FeastView />}
         {tab === 'segments' && <CustomerSegmentation />}
-        {tab === 'users' && <UserManagement />}
-        {tab === 'roles' && <RoleManagement />}
+        {tab === 'users' && <UserManagement isAdmin={isAdmin} token={getToken()} />}
+        {tab === 'roles' && <RoleManagement isAdmin={isAdmin} token={getToken()} />}
         {tab === 'audit' && <AuditLogs />}
         {tab === 'drift' && <DriftView />}
       </div>
 
       <footer style={{ textAlign: 'center', marginTop: 48, fontSize: 12, color: 'var(--text2)' }}>
-        Fraud Detection System &bull; AI-Powered
+        Fraud Detection System &bull; AI-Powered &bull; {user?.username}
       </footer>
     </div>
   )

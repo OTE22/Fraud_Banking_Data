@@ -9,6 +9,7 @@ async def register_user(db: AsyncSession, username: str, email: str, password: s
     existing = await get_user_by_username(db, username)
     if existing:
         raise ValueError("Username already exists")
+    existing_email = await get_user_by_username(db, email)
     return await create_user(db, username, email, password, roles)
 
 
@@ -22,3 +23,11 @@ async def authenticate_user(db: AsyncSession, username: str, password: str) -> t
 
 async def get_user_profile(db: AsyncSession, user_id: int) -> UserModel | None:
     return await get_user_by_id(db, user_id)
+
+
+async def list_all_users(db: AsyncSession, skip: int = 0, limit: int = 50) -> list[UserModel]:
+    return await list_users(db, skip, limit)
+
+
+async def update_user_roles(db: AsyncSession, user_id: int, roles: list[str]) -> UserModel | None:
+    return await update_user(db, user_id, {"roles": ",".join(roles)})
