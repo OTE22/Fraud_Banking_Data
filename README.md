@@ -2,6 +2,8 @@
 
 Real-time fraud detection system with ML models, Feast feature store, RBAC, MLOps monitoring, and customer segmentation.
 
+![Demo](fraud_detector.gif)
+
 ## Tech Stack
 
 | Layer | Technology |

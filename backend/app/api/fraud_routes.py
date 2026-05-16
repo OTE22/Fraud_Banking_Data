@@ -1,18 +1,15 @@
-from fastapi import APIRouter, Depends
-from sqlalchemy.ext.asyncio import AsyncSession
+from fastapi import APIRouter, Depends, HTTPException
 from app.domain.fraud_schema import FraudAlertResponse, EnsembleScoreRequest, EnsembleScoreResponse
 from app.rules.alert_manager import alert_manager
-from app.rules.risk_scoring import compute_risk_score
 from app.ml.ensemble_engine import ensemble_score
-from app.core.db import get_db
-from app.auth.rbac import require_role
+from app.auth.rbac import require_role, get_current_user
 
 router = APIRouter(prefix="/fraud", tags=["fraud"])
 
 
 @router.get("/alerts", response_model=list[FraudAlertResponse])
-async def get_alerts(_=Depends(require_role("fraud_analyst"))):
-    alerts = await alert_manager.get_recent()
+async def get_alerts(user: dict = Depends(require_role("fraud_analyst"))):
+    alerts = alert_manager.get_recent_safe()
     return [FraudAlertResponse(id=i, **a) for i, a in enumerate(alerts)]
 
 

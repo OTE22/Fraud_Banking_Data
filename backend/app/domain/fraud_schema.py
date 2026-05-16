@@ -13,9 +13,10 @@ class FraudAlertResponse(BaseModel):
     id: int
     transaction_id: str
     risk_score: float
-    rule_name: str
-    description: str
-    status: str
+    decision: str
+    rules: list[str]
+    description: str = ""
+    status: str = "active"
     created_at: Optional[str] = None
 
 
