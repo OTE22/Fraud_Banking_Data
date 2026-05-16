@@ -10,6 +10,7 @@ from app.api.auth_routes import router as auth_router
 from app.api.fraud_routes import router as fraud_router
 from app.api.drift_routes import router as drift_router
 from app.api.admin_routes import router as admin_router
+from app.api.segments_routes import router as segments_router
 from app.ml.drift import start_scheduler
 
 
@@ -38,3 +39,4 @@ app.include_router(auth_router, prefix="/api/v1")
 app.include_router(fraud_router, prefix="/api/v1")
 app.include_router(drift_router, prefix="/api/v1")
 app.include_router(admin_router, prefix="/api/v1")
+app.include_router(segments_router, prefix="/api/v1")

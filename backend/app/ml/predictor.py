@@ -38,13 +38,28 @@ class FraudPredictor:
             self.anomaly_model = artifact["model"]
             self.anomaly_scaler = artifact.get("scaler")
             self.anomaly_feature_cols = artifact.get("feature_cols")
-            LOGGER.info("anomaly_model_loaded", path=str(path))
+            LOGGER.info("anomaly_model_loaded", path=str(path), feat_cols=self.anomaly_feature_cols)
         else:
             LOGGER.warning("anomaly_model_not_found", path=str(path))
 
     @property
     def loaded(self) -> bool:
         return self.model is not None
+
+    def _build_anomaly_features(self, tx: TransactionInput) -> np.ndarray:
+        raw_vals = {
+            "amount": tx.amount,
+            "log_amount": np.log1p(tx.amount),
+            "balance_diff_orig": tx.oldbalance_orig - tx.newbalance_orig,
+            "balance_diff_dest": tx.newbalance_dest - tx.oldbalance_dest,
+            "amt_to_balance_ratio": tx.amount / (tx.oldbalance_orig + 1),
+            "oldbalanceOrg": tx.oldbalance_orig,
+            "newbalanceOrig": tx.newbalance_orig,
+            "oldbalanceDest": tx.oldbalance_dest,
+            "newbalanceDest": tx.newbalance_dest,
+        }
+        cols = self.anomaly_feature_cols or list(raw_vals.keys())
+        return np.array([[raw_vals[c] for c in cols]])
 
     def _build_features(self, tx: TransactionInput) -> np.ndarray:
         type_encoded = self.type_encoder.transform([tx.transaction_type])[0]
@@ -70,6 +85,17 @@ class FraudPredictor:
             is_fraudulent=pred, model_version="v1.0", timestamp=datetime.now(timezone.utc),
         )
 
+    def predict_anomaly(self, tx: TransactionInput) -> float | None:
+        if self.anomaly_model is None or self.anomaly_scaler is None:
+            return None
+        try:
+            anom_raw = self._build_anomaly_features(tx)
+            anom_scaled = self.anomaly_scaler.transform(anom_raw)
+            return float(self.anomaly_model.score_samples(anom_scaled)[0])
+        except Exception as e:
+            LOGGER.warning("anomaly_predict_failed", error=str(e))
+            return None
+
     def predict_with_detail(self, tx: TransactionInput) -> tuple:
         if not self.loaded:
             return PredictionOutput(
@@ -93,19 +119,11 @@ class FraudPredictor:
         anomaly_score = None
         if self.anomaly_model is not None and self.anomaly_scaler is not None:
             try:
-                anom_raw = np.array([[
-                    tx.amount,
-                    np.log1p(tx.amount),
-                    tx.oldbalance_orig - tx.newbalance_orig,
-                    tx.newbalance_dest - tx.oldbalance_dest,
-                    tx.amount / (tx.oldbalance_orig + 1),
-                    tx.oldbalance_orig, tx.newbalance_orig,
-                    tx.oldbalance_dest, tx.newbalance_dest,
-                ]])
+                anom_raw = self._build_anomaly_features(tx)
                 anom_scaled = self.anomaly_scaler.transform(anom_raw)
                 anomaly_score = float(self.anomaly_model.score_samples(anom_scaled)[0])
-            except Exception:
-                pass
+            except Exception as e:
+                LOGGER.warning("anomaly_score_failed", error=str(e))
 
         detail = {
             "input_raw": tx.model_dump(), "encoded_type": tx.transaction_type,

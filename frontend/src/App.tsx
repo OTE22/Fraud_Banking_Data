@@ -40,8 +40,7 @@ const ALL_TABS: { key: Tab; label: string; icon: string; adminOnly?: boolean }[]
 const API = window.location.origin.includes('3000') ? 'http://localhost:8000' : ''
 
 function getPathTab(): Tab {
-  const hash = window.location.hash.replace('#', '')
-  return TAB_MAP[hash] || 'dashboard'
+  return TAB_MAP[window.location.pathname] || 'dashboard'
 }
 
 export default function App() {
@@ -53,13 +52,17 @@ export default function App() {
 
   const setTab = (t: Tab) => {
     setTabState(t)
-    window.location.hash = PATH_MAP[t]
+    const path = PATH_MAP[t]
+    window.history.pushState(null, '', path)
+    document.title = `Fraud Detection - ${t.charAt(0).toUpperCase() + t.slice(1)}`
   }
 
   useEffect(() => {
-    const onHash = () => setTabState(getPathTab())
-    window.addEventListener('hashchange', onHash)
-    return () => window.removeEventListener('hashchange', onHash)
+    const onPop = () => setTabState(getPathTab())
+    window.addEventListener('popstate', onPop)
+    const initial = getPathTab()
+    if (initial !== tab) setTabState(initial)
+    return () => window.removeEventListener('popstate', onPop)
   }, [])
 
   useEffect(() => {
@@ -80,7 +83,7 @@ export default function App() {
     if (r.ok) { setUser(await r.json()); setAuthed(true); setTab('dashboard') }
   }
 
-  const handleLogout = () => { clearToken(); setAuthed(false); setUser(null); window.location.hash = '' }
+  const handleLogout = () => { clearToken(); setAuthed(false); setUser(null); window.history.pushState(null, '', '/') }
 
   const isAdmin = user?.roles?.includes('admin')
   const tabs = ALL_TABS.filter(t => !t.adminOnly || isAdmin)
@@ -90,7 +93,7 @@ export default function App() {
   if (!authed) {
     return showLogin
       ? <LoginPage onLogin={handleLogin} onSwitch={() => setShowLogin(false)} />
-      : <RegisterPage onSwitch={() => { setShowLogin(true); window.location.hash = '' }} />
+      : <RegisterPage onSwitch={() => { setShowLogin(true); window.history.pushState(null, '', '/') }} />
   }
 
   return (

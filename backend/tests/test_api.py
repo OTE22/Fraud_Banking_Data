@@ -141,3 +141,40 @@ def test_model_loaded():
 def test_anomaly_model_loaded():
     assert PREDICTOR.anomaly_model is not None
     assert PREDICTOR.anomaly_scaler is not None
+    assert PREDICTOR.anomaly_feature_cols is not None
+
+
+@pytest.mark.asyncio
+async def test_anomaly_predict_endpoint(client):
+    r = await client.post("/api/v1/predict/anomaly", json={
+        "transaction_id": "test_anom_1", "transaction_type": "CASH_OUT",
+        "amount": 500000.0, "oldbalance_orig": 600000.0,
+        "newbalance_orig": 0.0, "oldbalance_dest": 0.0,
+        "newbalance_dest": 500000.0, "is_flagged_fraud": False,
+        "customer_id": "C999", "merchant_id": "M999",
+        "step": 1,
+    })
+    assert r.status_code == 200
+    data = r.json()
+    assert data["transaction_id"] == "test_anom_1"
+    assert data["anomaly_score"] is not None
+    assert data["is_anomaly"] is not None
+
+
+@pytest.mark.asyncio
+async def test_anomaly_csv_export(client):
+    r = await client.post("/api/v1/predict", json={
+        "transaction_id": "csv_export_1", "transaction_type": "CASH_OUT",
+        "amount": 10000, "oldbalance_orig": 50000, "newbalance_orig": 40000,
+        "oldbalance_dest": 0, "newbalance_dest": 10000,
+        "is_flagged_fraud": False, "customer_id": "C1", "merchant_id": "M1", "step": 1,
+    })
+    assert r.status_code == 200
+    r2 = await client.get("/api/v1/predict/anomaly/export?limit=10")
+    assert r2.status_code == 200
+    assert "text/csv" in r2.headers.get("content-type", "")
+    body = r2.text
+    assert "transaction_id" in body
+    assert "anomaly_score" in body
+    header_line = body.split("\n")[0]
+    assert header_line.startswith("transaction_id")

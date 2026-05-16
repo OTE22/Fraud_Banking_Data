@@ -1,6 +1,7 @@
-import json
+import json, csv, io
 from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, text
 from app.domain.schemas import TransactionInput, PredictionOutput, PredictionLogDetail, StepFeature, HealthResponse
@@ -38,6 +39,43 @@ async def predict(tx: TransactionInput, db: AsyncSession = Depends(get_db)):
 async def prediction_history(limit: int = 20, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(PredictionModel).order_by(PredictionModel.id.desc()).limit(limit))
     return [{"transaction_id": r.transaction_id, "fraud_probability": r.fraud_probability, "is_fraudulent": r.is_fraudulent, "created_at": r.created_at.isoformat() if r.created_at else None} for r in result.scalars()]
+
+
+@router.post("/predict/anomaly")
+async def predict_anomaly(tx: TransactionInput):
+    score = PREDICTOR.predict_anomaly(tx)
+    return {
+        "transaction_id": tx.transaction_id,
+        "anomaly_score": score,
+        "is_anomaly": score is not None and score < -0.5,
+    }
+
+
+@router.get("/predict/anomaly/export")
+async def export_anomaly_csv(limit: int = 1000, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(PredictionModel).order_by(PredictionModel.id.desc()).limit(limit))
+    records = result.scalars().all()
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(["transaction_id", "fraud_probability", "is_fraudulent", "amount", "oldbalance_orig",
+                      "newbalance_orig", "oldbalance_dest", "newbalance_dest", "anomaly_score", "anomaly_feature_1",
+                      "anomaly_feature_2", "anomaly_feature_3", "anomaly_feature_4", "anomaly_feature_5",
+                      "anomaly_feature_6", "anomaly_feature_7", "anomaly_feature_8", "anomaly_feature_9", "created_at"])
+    for r in records:
+        detail = json.loads(r.detail_json) if r.detail_json else {}
+        inp = detail.get("input_raw", {})
+        anom = detail.get("anomaly_score", "")
+        feats = detail.get("features", [])
+        anom_feats = [f.get("raw_value", "") for f in feats[:9]] if feats else [""] * 9
+        writer.writerow([
+            r.transaction_id, r.fraud_probability, r.is_fraudulent,
+            inp.get("amount", ""), inp.get("oldbalance_orig", ""),
+            inp.get("newbalance_orig", ""), inp.get("oldbalance_dest", ""),
+            inp.get("newbalance_dest", ""), anom, *anom_feats,
+            r.created_at.isoformat() if r.created_at else "",
+        ])
+    output.seek(0)
+    return StreamingResponse(output, media_type="text/csv", headers={"Content-Disposition": "attachment; filename=anomaly_predictions.csv"})
 
 
 @router.get("/features/feast")
