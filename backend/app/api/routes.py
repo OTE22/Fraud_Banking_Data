@@ -53,7 +53,7 @@ async def prediction_log(transaction_id: str, db: AsyncSession = Depends(get_db)
         raise HTTPException(status_code=404, detail="No detail log found for this transaction")
     detail = json.loads(record.detail_json)
     ts = record.created_at or datetime.utcnow()
-    return PredictionLogDetail(transaction_id=record.transaction_id, fraud_probability=record.fraud_probability, is_fraudulent=record.is_fraudulent, model_version=record.model_version, timestamp=ts, input_raw=detail.get("input_raw", {}), encoded_type=detail.get("encoded_type", ""), encoded_type_value=detail.get("encoded_type_value", 0), features=[StepFeature(**f) for f in detail.get("features", [])], tree_votes_fraud=detail.get("tree_votes_fraud", 0), tree_votes_legit=detail.get("tree_votes_legit", 0), global_feature_importance=detail.get("global_feature_importance", []))
+    return PredictionLogDetail(transaction_id=record.transaction_id, fraud_probability=record.fraud_probability, is_fraudulent=record.is_fraudulent, model_version=record.model_version, timestamp=ts, input_raw=detail.get("input_raw", {}), encoded_type=detail.get("encoded_type", ""), encoded_type_value=detail.get("encoded_type_value", 0), features=[StepFeature(**f) for f in detail.get("features", [])], tree_votes_fraud=detail.get("tree_votes_fraud", 0), tree_votes_legit=detail.get("tree_votes_legit", 0), anomaly_score=detail.get("anomaly_score"), global_feature_importance=detail.get("global_feature_importance", []))
 
 
 @router.get("/predictions/logs")

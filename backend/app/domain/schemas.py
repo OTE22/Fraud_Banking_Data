@@ -58,6 +58,7 @@ class PredictionLogDetail(BaseModel):
     features: list[StepFeature]
     tree_votes_fraud: int
     tree_votes_legit: int
+    anomaly_score: float | None = None
     global_feature_importance: list[dict]
 
 

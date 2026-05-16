@@ -6,6 +6,8 @@ class Settings(BaseSettings):
     app_name: str = "Enterprise Banking Fraud Detection API"
     debug: bool = False
     model_path: str = "backend/models/fraud_model.pkl"
+    anomaly_model_path: str = "backend/models/anomaly_model.pkl"
+    segmentation_model_path: str = "backend/models/segmentation_model.pkl"
     feast_repo_path: str = "backend/feature_repo"
     drift_interval_hours: int = 6
     drift_threshold: float = 0.15

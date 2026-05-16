@@ -13,7 +13,10 @@ class FraudPredictor:
         self.scaler = None
         self.type_encoder = None
         self.feature_cols = None
+        self.anomaly_model = None
+        self.anomaly_scaler = None
         self._load_model()
+        self._load_anomaly_model()
 
     def _load_model(self) -> None:
         path = Path(get_settings().model_path)
@@ -26,6 +29,17 @@ class FraudPredictor:
             LOGGER.info("model_loaded", path=str(path))
         else:
             LOGGER.warning("model_not_found", path=str(path))
+
+    def _load_anomaly_model(self) -> None:
+        path = Path(get_settings().anomaly_model_path)
+        if path.exists():
+            artifact = joblib.load(path)
+            self.anomaly_model = artifact["model"]
+            self.anomaly_scaler = artifact.get("scaler")
+            self.anomaly_feature_cols = artifact.get("feature_cols")
+            LOGGER.info("anomaly_model_loaded", path=str(path))
+        else:
+            LOGGER.warning("anomaly_model_not_found", path=str(path))
 
     @property
     def loaded(self) -> bool:
@@ -75,6 +89,18 @@ class FraudPredictor:
             {"name": f, "raw_value": float(raw[0, i]), "scaled_value": float(scaled[0, i])}
             for i, f in enumerate(self.feature_cols)
         ]
+        anomaly_score = None
+        if self.anomaly_model is not None and self.anomaly_scaler is not None:
+            try:
+                anomaly_features = np.array([[
+                    tx.amount, tx.oldbalance_orig, tx.newbalance_orig,
+                    tx.oldbalance_dest, tx.newbalance_dest,
+                ]])
+                anom_scaled = self.anomaly_scaler.transform(anomaly_features)
+                anomaly_score = float(self.anomaly_model.score_samples(anom_scaled)[0])
+            except Exception:
+                pass
+
         detail = {
             "input_raw": tx.model_dump(), "encoded_type": tx.transaction_type,
             "encoded_type_value": int(type_encoded), "features": features_detail,
@@ -82,6 +108,7 @@ class FraudPredictor:
             "model_version": "v1.0",
             "tree_votes_fraud": trees_fraud,
             "tree_votes_legit": len(self.model.estimators_) - trees_fraud,
+            "anomaly_score": anomaly_score,
             "global_feature_importance": [
                 {"feature": f, "importance": round(float(v), 4)}
                 for f, v in zip(self.feature_cols, self.model.feature_importances_)
