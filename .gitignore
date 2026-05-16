@@ -1,0 +1,85 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.egg-info/
+*.egg
+dist/
+build/
+*.whl
+*.so
+.venv/
+venv/
+env/
+*.manifest
+*.spec
+
+# Model artifacts
+*.pkl
+*.joblib
+*.h5
+*.onnx
+*.pt
+*.bin
+
+# Data files
+*.csv
+*.parquet
+*.feather
+*.jsonl
+*.db
+*.sqlite
+*.sqlite3
+registry.db
+
+# Environment and secrets
+.env
+.env.local
+.env.*.local
+*.key
+*.pem
+*.cert
+credentials.*
+
+# Logs
+*.log
+logs/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.project
+.classpath
+
+# OS
+.DS_Store
+Thumbs.db
+*.dmg
+
+# Testing
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+.tox/
+nosetests.xml
+coverage.xml
+*.trx
+
+# Docker
+.dockerignore
+
+# Frontend
+node_modules/
+dist/
+.vite/
+*.tsbuildinfo
+
+# Feast
+backend/feature_repo/data/*.parquet
+backend/feature_repo/data/registry.db
