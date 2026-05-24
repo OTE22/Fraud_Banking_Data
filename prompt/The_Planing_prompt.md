@@ -1,7 +1,4 @@
-Here is your prompt translated and reformatted into **clean technical English**, preserving all structure and intent:
-
----
-
+# First Prompt
 # [Role & Responsibility]
 
 You are now operating as a **Staff Software Engineer** and **Tech Lead**.
