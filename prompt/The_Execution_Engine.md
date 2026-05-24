@@ -1,6 +1,4 @@
-Here is your text translated into **clear English**:
-
----
+# Third Prompt
 
 # [Continuous Execution Authorization — Full Product Awareness]
 
